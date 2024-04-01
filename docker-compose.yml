@@ -1,0 +1,100 @@
+version: "3"
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./postgres/:/docker-entrypoint-initdb.d/
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+
+  flight-service:
+    build: FlightService/
+    image: flight-service:v1
+    container_name: flight-service
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgres?currentSchema=flight_service
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=123
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    ports:
+      - "8060:8060"
+    networks:
+      - backend
+
+  ticket-service:
+    build: TicketService/
+    image: ticket-service:v1
+    container_name: ticket-service
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgres?currentSchema=ticket_service
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=123
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    ports:
+      - "8070:8070"
+    networks:
+      - backend
+
+  bonus-service:
+    build: BonusService/
+    image: bonus-service:v1
+    container_name: bonus-service
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/postgres?currentSchema=privilege_service
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=123
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    ports:
+      - "8050:8050"
+    networks:
+      - backend
+      
+  gateway-service:
+    build: Gateway/
+    image: gateway-service:v1
+    container_name: gateway-service
+    depends_on:
+      - postgres
+    environment:
+      - TICKET_SERVICE_HOST=http://ticket-service:8070
+      - FLIGHT_SERVICE_HOST=http://flight-service:8060
+      - BONUS_SERVICE_HOST=http://bonus-service:8050
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+  
+  keycloak:
+    container_name: keycloak
+    image: quay.io/keycloak/keycloak:latest
+    ports:
+      - "8180:8180"
+    entrypoint: /opt/keycloak/bin/kc.sh start-dev --http-port=8180
+    volumes:
+      - ./imports/:/opt/jboss/keycloak/imports
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    networks:
+      - backend
+
+volumes:
+  db-data:
+  postgres_data:
+  
+networks:
+  backend:

@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-app
+  template:
+    metadata:
+      labels:
+        app: gateway-app
+    spec:
+      containers:
+      - name: gateway-app
+        image: meekie/gateway-service:latest
+        ports:
+        - containerPort: 8080
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: gateway-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flight-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flight-app
+  template:
+    metadata:
+      labels:
+        app: flight-app
+    spec:
+      containers:
+      - name: flight-app
+        image: meekie/flight-service:latest
+        ports:
+        - containerPort: 8060
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flight-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8060
+    protocol: TCP
+    name: http
+  selector:
+    app: flight-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ticket-app
+  template:
+    metadata:
+      labels:
+        app: ticket-app
+    spec:
+      containers:
+      - name: ticket-app
+        image: meekie/ticket-service:latest
+        ports:
+        - containerPort: 8070
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8070
+    protocol: TCP
+    name: http
+  selector:
+    app: ticket-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bonus-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bonus-app
+  template:
+    metadata:
+      labels:
+        app: bonus-app
+    spec:
+      containers:
+      - name: bonus-app
+        image: meekie/bonus-service:latest
+        ports:
+        - containerPort: 8050
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bonus-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8050
+    protocol: TCP
+    name: http
+  selector:
+    app: bonus-app
+---

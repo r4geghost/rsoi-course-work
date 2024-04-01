@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lab4-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: lab4.rsoi.dyusov.com
+    http:
+      paths:
+      - path: /api/v1
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-service
+            port:
+              number: 80
+      - path: /api/ticket
+        pathType: Prefix
+        backend:
+          service:
+            name: ticket-service
+            port:
+              number: 80
+      - path: /api/flight
+        pathType: Prefix
+        backend:
+          service:
+            name: flight-service
+            port:
+              number: 80
+      - path: /api/bonus
+        pathType: Prefix
+        backend:
+          service:
+            name: bonus-service
+            port:
+              number: 80
