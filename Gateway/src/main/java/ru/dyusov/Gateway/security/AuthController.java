@@ -14,8 +14,8 @@ public class AuthController {
     private KeycloakRestService restService;
 
     @PostMapping(value = "/authorize", produces = MediaType.APPLICATION_JSON_VALUE)
-    public String login(@RequestBody UserCreds user) {
-        return restService.login(user.username, user.password);
+    public String login(@RequestBody OAuthTokenRequest user) {
+        return restService.login(user.username, user.password, user.clientId, user.clientSecret);
     }
 
     @PostMapping(value = "/refreshToken", produces = MediaType.APPLICATION_JSON_VALUE)

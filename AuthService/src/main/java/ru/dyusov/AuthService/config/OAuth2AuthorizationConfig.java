@@ -14,30 +14,27 @@ import java.security.KeyPair;
 
 @Configuration
 @EnableAuthorizationServer
-public class OAuth2AuthorizationConfig  {
+public class OAuth2AuthorizationConfig {
 
-  @Value("${security.oauth2.resource.jwt.key-store}")
-  private String keyStorePath;
+    @Value("${security.oauth2.resource.jwt.key-store}")
+    private String keyStorePath;
 
-  @Value("${security.oauth2.resource.jwt.key-store-password}")
-  private String keyStorePass;
+    @Value("${security.oauth2.resource.jwt.key-store-password}")
+    private String keyStorePass;
 
-  @Value("${security.oauth2.resource.jwt.key-alias}")
-  private String keyPairAlias;
+    @Value("${security.oauth2.resource.jwt.key-alias}")
+    private String keyPairAlias;
 
-  /**
-   * Spring will use this encoder to check the user password when performing an authorization
-   */
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-  @Bean
-  public JwtAccessTokenConverter jwtAccessTokenConverter() {
-    JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
-    KeyPair keyPair = new KeyStoreKeyFactory(new ClassPathResource(keyStorePath), keyStorePass.toCharArray()).getKeyPair(keyPairAlias);
-    converter.setKeyPair(keyPair);
-    return converter;
-  }
+    @Bean
+    public JwtAccessTokenConverter jwtAccessTokenConverter() {
+        JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+        KeyPair keyPair = new KeyStoreKeyFactory(new ClassPathResource(keyStorePath), keyStorePass.toCharArray()).getKeyPair(keyPairAlias);
+        converter.setKeyPair(keyPair);
+        return converter;
+    }
 }

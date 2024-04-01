@@ -14,7 +14,6 @@ import ru.dyusov.Gateway.request.AddTicketRequest;
 import ru.dyusov.Gateway.request.PrivilegeHistoryRequest;
 import ru.dyusov.Gateway.request.TicketRequest;
 import ru.dyusov.Gateway.response.*;
-import ru.dyusov.Gateway.security.JwtService;
 import ru.dyusov.Gateway.security.KeycloakRestService;
 import ru.dyusov.Gateway.security.UserInfoResponse;
 
@@ -48,8 +47,8 @@ public class GatewayController {
     @Autowired
     private RetryTemplate retryTemplate;
 
-    @Autowired
-    private JwtService jwtService;
+//    @Autowired
+//    private JwtService jwtService;
 
     @Autowired
     private KeycloakRestService restService;
@@ -62,7 +61,7 @@ public class GatewayController {
     // validate jwt token function
     private HttpStatus validateToken(String authHeader) throws Exception {
         try {
-            jwtService.validate(authHeader);
+//            jwtService.validate(authHeader);
             return HttpStatus.OK;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage());
@@ -71,7 +70,8 @@ public class GatewayController {
 
     // get username from jwt token
     private String getUserName(String authToken) {
-        UserInfoResponse response = restService.getUserInfo(authToken.replace("Bearer", "").trim());
+//        UserInfoResponse response = restService.getUserInfo(authToken.replace("Bearer", "").trim());
+        UserInfoResponse response = new UserInfoResponse();
         return response.getPreferred_username();
     }
 
