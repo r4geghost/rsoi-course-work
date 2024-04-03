@@ -1,9 +1,7 @@
 package ru.dyusov.Gateway.security;
 
 import org.apache.hc.client5.http.utils.Base64;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -14,14 +12,15 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 
 @Service
-public class KeycloakRestService {
+public class AuthService {
 
     @Value("${token-uri}")
     private String tokenUri;
+
+    @Value("${auth-uri}")
+    private String authUri;
 
     @Value("${authorization-grant-type}")
     private String grantType;
@@ -42,31 +41,21 @@ public class KeycloakRestService {
         fields.add("username", username);
         fields.add("password", password);
         fields.add("grant_type", grantType);
-        System.out.println(createHeaders(clientId, clientSecret).get("Authorization"));
         return new RestTemplate().exchange(tokenUri,
                 HttpMethod.POST,
                 new HttpEntity<>(fields ,createHeaders(clientId, clientSecret)),
                 String.class).getBody();
     }
 
-    public String refreshToken(String refreshToken) {
-        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-//        map.add("client_id", clientId);
-        map.add("grant_type", "refresh_token");
-        map.add("refresh_token", refreshToken);
-
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, new HttpHeaders());
-        return new RestTemplate().postForObject(tokenUri, request, String.class);
+    public UserInfoResponse auth(String authHeader) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authHeader);
+        System.out.println(authHeader);
+        return new RestTemplate().exchange(
+                authUri,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                UserInfoResponse.class
+        ).getBody();
     }
-
-//    public UserInfoResponse getUserInfo(String authToken) {
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.set("Authorization", "Bearer " + authToken);
-//        return new RestTemplate().exchange(
-//                keycloakUserInfo,
-//                HttpMethod.GET,
-//                new HttpEntity<>(headers),
-//                UserInfoResponse.class
-//        ).getBody();
-//    }
 }

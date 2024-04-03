@@ -11,16 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class AuthController {
     @Autowired
-    private KeycloakRestService restService;
+    private AuthService restService;
 
     @PostMapping(value = "/authorize", produces = MediaType.APPLICATION_JSON_VALUE)
     public String login(@RequestBody OAuthTokenRequest user) {
         return restService.login(user.username, user.password, user.clientId, user.clientSecret);
     }
-
-    @PostMapping(value = "/refreshToken", produces = MediaType.APPLICATION_JSON_VALUE)
-    public String refreshToken(@RequestBody TokenRequest refreshToken) {
-        return restService.refreshToken(refreshToken.token);
-    }
-
 }

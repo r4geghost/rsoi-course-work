@@ -14,7 +14,7 @@ import ru.dyusov.Gateway.request.AddTicketRequest;
 import ru.dyusov.Gateway.request.PrivilegeHistoryRequest;
 import ru.dyusov.Gateway.request.TicketRequest;
 import ru.dyusov.Gateway.response.*;
-import ru.dyusov.Gateway.security.KeycloakRestService;
+import ru.dyusov.Gateway.security.AuthService;
 import ru.dyusov.Gateway.security.UserInfoResponse;
 
 import java.util.Arrays;
@@ -47,38 +47,17 @@ public class GatewayController {
     @Autowired
     private RetryTemplate retryTemplate;
 
-//    @Autowired
-//    private JwtService jwtService;
-
     @Autowired
-    private KeycloakRestService restService;
+    private AuthService authService;
 
     @GetMapping("/authOnly")
-    public ResponseEntity<Void> test(@RequestHeader("Authorization") String authHeader) throws Exception {
-        return new ResponseEntity<>(validateToken(authHeader));
-    }
-
-    // validate jwt token function
-    private HttpStatus validateToken(String authHeader) throws Exception {
-        try {
-//            jwtService.validate(authHeader);
-            return HttpStatus.OK;
-        } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, e.getMessage());
-        }
-    }
-
-    // get username from jwt token
-    private String getUserName(String authToken) {
-//        UserInfoResponse response = restService.getUserInfo(authToken.replace("Bearer", "").trim());
-        UserInfoResponse response = new UserInfoResponse();
-        return response.getPreferred_username();
+    public ResponseEntity<UserInfoResponse> test(@RequestHeader("Authorization") String authHeader) throws Exception {
+        return new ResponseEntity<>(authService.auth(authHeader), HttpStatus.OK);
     }
 
     @GetMapping("/flights")
     public FlightListResponse testFlights(@RequestParam int page, @RequestParam int size, @RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
+        authService.auth(authHeader);
         FlightListResponse response = new RestTemplate().exchange(
                 FLIGHT_SERVICE + GET_FLIGHTS_URL,
                 HttpMethod.GET,
@@ -91,10 +70,8 @@ public class GatewayController {
 
     @PostMapping("/tickets")
     public ResponseEntity<TicketPurchaseResponse> addTicket(@RequestBody TicketRequest ticket, @RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
-        // get username
-        String username = getUserName(authHeader);
+        // validate token and get username
+        String username = authService.auth(authHeader).getPrincipal();
 
         // get flight by flightNumber and check if exist
         FlightResponse flight = new RestTemplate().exchange(
@@ -184,10 +161,8 @@ public class GatewayController {
 
     @GetMapping("/tickets")
     public TicketResponse[] getTickets(@RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
-        // get username
-        String username = getUserName(authHeader);
+        // validate token and get username
+        String username = authService.auth(authHeader).getPrincipal();
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);
@@ -217,10 +192,8 @@ public class GatewayController {
 
     @GetMapping("/me")
     public ResponseEntity getUserInfo(@RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
-        // get username
-        String username = getUserName(authHeader);
+        // validate token and get username
+        String username = authService.auth(authHeader).getPrincipal();
 
         TicketResponse[] tickets = getTickets(authHeader);
         PrivilegeResponse privilege = getPrivilegeInfo(username).getBody();
@@ -236,10 +209,8 @@ public class GatewayController {
 
     @GetMapping("/tickets/{ticketUid}")
     public TicketResponse getTicketByUid(@PathVariable UUID ticketUid, @RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
-        // get username
-        String username = getUserName(authHeader);
+        // validate token and get username
+        String username = authService.auth(authHeader).getPrincipal();
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);
@@ -266,10 +237,9 @@ public class GatewayController {
     @DeleteMapping("/tickets/{ticketUid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> deleteTicketByUid(@PathVariable UUID ticketUid, @RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
-        // get username
-        String username = getUserName(authHeader);
+        // validate token and get username
+        String username = authService.auth(authHeader).getPrincipal();
+
         try {
             // get ticket to be deleted
             TicketResponse ticket = getTicketByUid(ticketUid, authHeader);
@@ -361,10 +331,8 @@ public class GatewayController {
 
     @GetMapping("/privilege")
     public ResponseEntity<PrivilegeWithHistoryResponse> getPrivilegeWithHistory(@RequestHeader("Authorization") String authHeader) throws Exception {
-        // validate token first
-        validateToken(authHeader);
-        // get username
-        String username = getUserName(authHeader);
+        // validate token and get username
+        String username = authService.auth(authHeader).getPrincipal();
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);

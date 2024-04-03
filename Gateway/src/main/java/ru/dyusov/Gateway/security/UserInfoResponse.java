@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 public class UserInfoResponse {
-    String preferred_username;
+    String principal;
 }
