@@ -1,6 +1,7 @@
 package ru.dyusov.Gateway.security;
 
 import org.apache.hc.client5.http.utils.Base64;
+import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import ru.dyusov.Gateway.request.UserInfoRequest;
 
 import java.nio.charset.StandardCharsets;
 
@@ -22,8 +24,15 @@ public class AuthService {
     @Value("${auth-uri}")
     private String authUri;
 
+    @Value("${create-user-uri}")
+    private String createUserUri;
+
     @Value("${authorization-grant-type}")
     private String grantType;
+
+    private String hashPassword(String password){
+        return BCrypt.hashpw(password, BCrypt.gensalt(10));
+    }
 
     HttpHeaders createHeaders(String clientId, String clientSecret){
         return new HttpHeaders() {{
@@ -57,5 +66,15 @@ public class AuthService {
                 new HttpEntity<>(headers),
                 UserInfoResponse.class
         ).getBody();
+    }
+
+    public String createUser(UserInfoRequest user, String authHeader) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authHeader);
+        user.password = hashPassword(user.password);
+        return new RestTemplate().postForEntity(
+                createUserUri,
+                new HttpEntity<>(user, headers),
+                String.class).getBody();
     }
 }
