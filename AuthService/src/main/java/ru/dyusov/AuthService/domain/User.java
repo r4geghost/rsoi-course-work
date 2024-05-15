@@ -8,10 +8,11 @@ import javax.persistence.*;
 import java.util.Collection;
 
 @Entity
+@Table(name="users")
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.AUTO)
     public Long id;
     public String email;
     public String password;
