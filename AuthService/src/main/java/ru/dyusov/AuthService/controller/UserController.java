@@ -31,6 +31,7 @@ public class UserController {
 
     @RequestMapping("/createUser")
     void createUser(@RequestBody User user) {
+        System.out.println("got user: " + user.email);
         userService.saveUser(user);
     }
 
