@@ -1,13 +1,13 @@
 package ru.dyusov.StatisticsService.kafka;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import ru.dyusov.StatisticsService.model.Message;
+import ru.dyusov.StatisticsService.model.LogMessage;
 import ru.dyusov.StatisticsService.service.StatisticsService;
-
-import java.util.function.Consumer;
+import ru.dyusov.StatisticsService.util.LogMessageMapper;
 
 @Slf4j
 @Component
@@ -20,15 +20,10 @@ public class KafkaConsumer {
         this.service = service;
     }
 
-    @Bean
-    public Consumer<Message> consumer() {
-        return data -> {
-            log.info("[STATISTICS]: {} got from topic", data);
-            try {
-                service.process(data);
-            } catch (Exception ex) {
-                log.error("[STATISTICS]: {} caught error, err={}", data, ex.getMessage());
-            }
-        };
+    @KafkaListener(topics = "statistics", groupId = "statistics")
+    public void listen(String message) throws JsonProcessingException {
+        LogMessage logMessage = LogMessageMapper.convertMessage(message);
+        System.out.println("[STATISTICS]: got from topic: " + logMessage);
+        service.process(logMessage);
     }
 }

@@ -1,0 +1,35 @@
+docker context use default
+
+minikube start --vm-driver=hyperv
+
+minikube status
+
+minikube dashboard (новое окно)
+
+cd C:\WORK\BMSTU\rsoi-course-work\kubernetes
+
+kubectl apply -f postgres.yaml
+
+kubectl apply -f deployment.yaml
+
+kubectl port-forward service/gateway-service 8080:80
+
+cd C:\WORK\BMSTU\rsoi-course-work\kubernetes\kafka
+
+kubectl apply -f 00-namespace.yaml
+
+kubectl apply -f 01-zookeeper.yaml
+
+kubectl apply -f 02-kafka.yaml
+
+kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
+
+kubectl apply -f kafka-cluster.yaml
+
+cd C:\WORK\BMSTU\rsoi-course-work\kubernetes\kafka\kafdrop
+
+helm upgrade -i kafdrop chart --set image.tag=3.31.0     --set kafka.brokerConnect="kafka-broker:9092"     --set server.servlet.contextPath="/"     --set jvm.opts="-Xms32M -Xmx64M"
+
+kubectl port-forward service/kafdrop 9000:9000
+
+minikube stop -all

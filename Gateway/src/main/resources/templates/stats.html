@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Flight List</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" style="font-weight: bold" href="#" th:href="@{/}">Сервис бронирования</a>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="#" th:href="@{/flights(page=1,size=3)}">Все
+                        рейсы</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" th:href="@{/myTickets}">Мои билеты</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        Обо мне
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="#" th:href="@{/info}">Общая информация</a></li>
+                        <li><a class="dropdown-item" href="#" th:href="@{/history}">История операций</a></li>
+                    </ul>
+                </li>
+            </ul>
+            <a class="nav-link" href="#" th:href="@{/stats}">Статистика</a>
+            <form class="d-flex" th:action="@{/logout}">
+                <button class="btn btn-outline-primary" type="submit">Выйти</button>
+            </form>
+        </div>
+    </div>
+</nav>
+<h2>Статистика запросов</h2>
+<table class="table table-striped">
+    <tr>
+        <th>Название сервиса</th>
+        <th>Кол-во запросов</th>
+        <th>Время работы (мс)</th>
+    </tr>
+    <!-- Отображение элементов списка -->
+    <tr th:each="stat : ${stats}">
+        <td th:text="${stat.service}"></td>
+        <td th:text="${stat.requestCount}"></td>
+        <td th:text="${stat.avgTime}"></td>
+    </tr>
+</table>
+</body>
+</html>

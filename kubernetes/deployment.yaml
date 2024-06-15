@@ -134,3 +134,71 @@ spec:
   selector:
     app: bonus-app
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-app
+  template:
+    metadata:
+      labels:
+        app: auth-app
+    spec:
+      containers:
+      - name: auth-app
+        image: meekie/auth-service:latest
+        ports:
+        - containerPort: 8040
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8040
+    protocol: TCP
+    name: http
+  selector:
+    app: auth-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: statistics-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: statistics-app
+  template:
+    metadata:
+      labels:
+        app: statistics-app
+    spec:
+      containers:
+      - name: statistics-app
+        image: meekie/statistics-service:latest
+        ports:
+        - containerPort: 8030
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: statistics-service
+spec:
+  ports:
+  - port: 80
+    targetPort: 8030
+    protocol: TCP
+    name: http
+  selector:
+    app: statistics-app
+    

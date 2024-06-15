@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
+import ru.dyusov.Gateway.kafka.KafkaProducer;
+import ru.dyusov.Gateway.kafka.LogMessage;
 import ru.dyusov.Gateway.request.AddTicketRequest;
 import ru.dyusov.Gateway.request.PrivilegeHistoryRequest;
 import ru.dyusov.Gateway.request.TicketRequest;
@@ -17,10 +19,13 @@ import ru.dyusov.Gateway.response.*;
 import ru.dyusov.Gateway.security.AuthService;
 import ru.dyusov.Gateway.security.UserInfoResponse;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import static java.lang.Thread.sleep;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -36,6 +41,9 @@ public class GatewayController {
     @Value("${bonus_service.host}")
     private String BONUS_SERVICE;
 
+    @Value("${statistics_service.host}")
+    private String STATISTICS_SERVICE;
+
     private static String GET_FLIGHTS_URL = "/api/flight/flights?page={page}&size={size}";
     private static String GET_FLIGHT_BY_NUMBER_URL = "/api/flight/flights/{flightNumber}";
     private static String GET_TICKETS_URL = "/api/ticket/tickets";
@@ -43,6 +51,7 @@ public class GatewayController {
     private static String GET_PRIVILEGE_URL = "/api/bonus/privilege";
     private static String GET_PRIVILEGE_HISTORY_URL = "/api/bonus/privilege/history";
     private static String GET_PRIVILEGE_HISTORY_BY_TICKET_UID_URL = "/api/bonus/privilege/history/{ticketUid}";
+    private static String GET_STATS_URL = "/stats";
 
     @Autowired
     private RetryTemplate retryTemplate;
@@ -50,14 +59,37 @@ public class GatewayController {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private KafkaProducer kafkaProducer;
+
     @GetMapping("/authOnly")
     public ResponseEntity<UserInfoResponse> test(@RequestHeader("Authorization") String authHeader) throws Exception {
-        return new ResponseEntity<>(authService.auth(authHeader), HttpStatus.OK);
+        // for test
+        LocalDateTime startDttm = LocalDateTime.now();
+
+        String username = authService.auth(authHeader).getPrincipal();
+//        kafkaProducer.send(new LogMessageDto(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "AUTH", "GATEWAY"));
+        return new ResponseEntity<>(authService.auth("Bearer " + authService.getAuthToken()), HttpStatus.OK);
+    }
+
+    @GetMapping("/stats")
+    public LogMessage[] getStatistics(@RequestHeader("Authorization") String authHeader) {
+        String username = authService.auth(authHeader).getPrincipal();
+        LocalDateTime startDttm = LocalDateTime.now();
+        LogMessage[] response = new RestTemplate().exchange(
+                STATISTICS_SERVICE + GET_STATS_URL,
+                HttpMethod.GET,
+                new HttpEntity<>(new HttpHeaders()),
+                LogMessage[].class).getBody();
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_FLIGHTS", "FLIGHT_SERVICE"));
+        return response;
     }
 
     @GetMapping("/flights")
     public FlightListResponse testFlights(@RequestParam int page, @RequestParam int size, @RequestHeader("Authorization") String authHeader) throws Exception {
-        authService.auth(authHeader);
+        String username = authService.auth(authHeader).getPrincipal();
+        LocalDateTime startDttm = LocalDateTime.now();
         FlightListResponse response = new RestTemplate().exchange(
                 FLIGHT_SERVICE + GET_FLIGHTS_URL,
                 HttpMethod.GET,
@@ -65,6 +97,8 @@ public class GatewayController {
                 FlightListResponse.class,
                 page - 1,
                 size).getBody();
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_FLIGHTS", "FLIGHT_SERVICE"));
         return response;
     }
 
@@ -72,7 +106,7 @@ public class GatewayController {
     public ResponseEntity<TicketPurchaseResponse> addTicket(@RequestBody TicketRequest ticket, @RequestHeader("Authorization") String authHeader) throws Exception {
         // validate token and get username
         String username = authService.auth(authHeader).getPrincipal();
-
+        LocalDateTime startDttm = LocalDateTime.now();
         // get flight by flightNumber and check if exist
         FlightResponse flight = new RestTemplate().exchange(
                 FLIGHT_SERVICE + GET_FLIGHT_BY_NUMBER_URL,
@@ -81,6 +115,11 @@ public class GatewayController {
                 FlightResponse.class,
                 ticket.getFlightNumber()).getBody();
         // add ticket to Tickets of user
+
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_FLIGHT_BY_NUMBER_URL", "FLIGHT_SERVICE"));
+        // reassign start dttm
+        startDttm = LocalDateTime.now();
         AddTicketRequest request = AddTicketRequest.build(
                 username,
                 ticket.getFlightNumber(),
@@ -91,7 +130,8 @@ public class GatewayController {
                 TICKET_SERVICE + GET_TICKETS_URL,
                 request,
                 UUID.class);
-
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_TICKETS", "TICKET_SERVICE"));
         // get ticketUid of added ticket
         UUID ticketUid = addedTicket.getBody();
 
@@ -140,6 +180,7 @@ public class GatewayController {
                 headers.set("X-User-Name", username);
                 RestTemplate rest = new RestTemplate();
                 rest.setRequestFactory(new HttpComponentsClientHttpRequestFactory());
+                startDttm = LocalDateTime.now();
                 rest.exchange(
                         TICKET_SERVICE + GET_TICKET_BY_UID,
                         HttpMethod.DELETE,
@@ -148,6 +189,8 @@ public class GatewayController {
                         ticketUid,
                         username
                 );
+                // send to kafka
+                kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "DELETE_TICKET", "TICKET_SERVICE"));
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Bonus Service unavailable");
             } else {
                 throw new Exception(e.getMessage());
@@ -211,6 +254,7 @@ public class GatewayController {
     public TicketResponse getTicketByUid(@PathVariable UUID ticketUid, @RequestHeader("Authorization") String authHeader) throws Exception {
         // validate token and get username
         String username = authService.auth(authHeader).getPrincipal();
+        LocalDateTime startDttm = LocalDateTime.now();
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);
@@ -222,12 +266,19 @@ public class GatewayController {
                 ticketUid,
                 username
         ).getBody();
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_TICKET", "TICKET_SERVICE"));
+
+        startDttm = LocalDateTime.now();
         FlightResponse flight = new RestTemplate().exchange(
                 FLIGHT_SERVICE + GET_FLIGHT_BY_NUMBER_URL,
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 FlightResponse.class,
                 ticket.getFlightNumber()).getBody();
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_FLIGHT_BY_NUMBER", "FLIGHT_SERVICE"));
+
         ticket.setDate(flight.getDate());
         ticket.setFromAirport(flight.getFromAirport());
         ticket.setToAirport(flight.getToAirport());
@@ -239,6 +290,7 @@ public class GatewayController {
     public ResponseEntity<Void> deleteTicketByUid(@PathVariable UUID ticketUid, @RequestHeader("Authorization") String authHeader) throws Exception {
         // validate token and get username
         String username = authService.auth(authHeader).getPrincipal();
+        LocalDateTime startDttm = LocalDateTime.now();
 
         try {
             // get ticket to be deleted
@@ -258,6 +310,8 @@ public class GatewayController {
                     TicketResponse.class,
                     ticketUid
             );
+            // send to kafka
+            kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_TICKET_BY_UID", "TICKET_SERVICE"));
 
             // call Bonus Service to update data in separate thread
             new Thread(() -> {
@@ -269,6 +323,37 @@ public class GatewayController {
                         return null;
                     });
                 } catch (Exception e) {
+                    try {
+                        sleep(10);
+                        retryTemplate.execute(obj -> {
+                            System.out.println("Call bonus service...");
+                            updateDataInBonusService(ticketUid, username);
+                            System.out.println("Bonus service updated!");
+                            return null;
+                        });
+                    } catch (Exception ex) {
+                        try {
+                            sleep(20);
+                            retryTemplate.execute(obj -> {
+                                System.out.println("Call bonus service...");
+                                updateDataInBonusService(ticketUid, username);
+                                System.out.println("Bonus service updated!");
+                                return null;
+                            });
+                        } catch (Exception exc) {
+                            try {
+                                sleep(20);
+                                retryTemplate.execute(obj -> {
+                                    System.out.println("Call bonus service...");
+                                    updateDataInBonusService(ticketUid, username);
+                                    System.out.println("Bonus service updated!");
+                                    return null;
+                                });
+                            } catch (Exception exception) {
+                                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Bonus service unavailable");
+                            }
+                        }
+                    }
                     throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Bonus service unavailable");
                 }
             }).start();
@@ -284,6 +369,7 @@ public class GatewayController {
     }
 
     private void updateDataInBonusService(UUID ticketUid, String username) throws Exception {
+        LocalDateTime startDttm = LocalDateTime.now();
         // find privilege status
         PrivilegeResponse privilege = getPrivilegeInfo(username).getBody();
         int currentBalance = privilege.getBalance();
@@ -300,6 +386,9 @@ public class GatewayController {
                         PrivilegeHistoryResponse.class,
                         ticketUid
                 ).getBody();
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_PRIVILEGE_HISTORY_BY_TICKET_UID", "BONUS_SERVICE"));
+
         String operationType = privilegeHistoryResponse.getOperationType();
         int balanceDiff = privilegeHistoryResponse.getBalanceDiff();
         int newBalance;
@@ -321,12 +410,15 @@ public class GatewayController {
         balanceUpdate.put("balance", newBalance);
         RestTemplate rest = new RestTemplate();
         rest.setRequestFactory(new HttpComponentsClientHttpRequestFactory());
+        startDttm = LocalDateTime.now();
         ResponseEntity<PrivilegeResponse> updatedPrivilege = rest.exchange(
                 BONUS_SERVICE + GET_PRIVILEGE_URL,
                 HttpMethod.PATCH,
                 new HttpEntity<>(balanceUpdate, headers),
                 PrivilegeResponse.class
         );
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "UPDATE_PRIVILEGE_INFO", "BONUS_SERVICE"));
     }
 
     @GetMapping("/privilege")
@@ -348,25 +440,33 @@ public class GatewayController {
     }
 
     private ResponseEntity<PrivilegeHistoryResponse[]> getPrivilegeHistory(String username) {
+        LocalDateTime startDttm = LocalDateTime.now();
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);
-        return new RestTemplate().exchange(
+        ResponseEntity<PrivilegeHistoryResponse[]> response = new RestTemplate().exchange(
                 BONUS_SERVICE + GET_PRIVILEGE_HISTORY_URL,
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 PrivilegeHistoryResponse[].class
         );
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_PRIVILEGE_HISTORY", "BONUS_SERVICE"));
+        return response;
     }
 
     private ResponseEntity<PrivilegeResponse> getPrivilegeInfo(String username) {
+        LocalDateTime startDttm = LocalDateTime.now();
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);
-        return new RestTemplate().exchange(
+        ResponseEntity<PrivilegeResponse> response = new RestTemplate().exchange(
                 BONUS_SERVICE + GET_PRIVILEGE_URL,
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 PrivilegeResponse.class
         );
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "GET_PRIVILEGE_INFO", "BONUS_SERVICE"));
+        return response;
     }
 
     private ResponseEntity<Void> bonusServiceFallback(Throwable throwable) {
@@ -374,6 +474,7 @@ public class GatewayController {
     }
 
     private String addHistoryRecord(UUID ticketUid, int bonusAmount, String operationType, String username) {
+        LocalDateTime startDttm = LocalDateTime.now();
         PrivilegeHistoryRequest request = PrivilegeHistoryRequest.build(
                 ticketUid,
                 bonusAmount,
@@ -387,10 +488,13 @@ public class GatewayController {
                 historyRecord,
                 Void.class
         );
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "ADD_HISTORY_RECORD", "BONUS_SERVICE"));
         return historyResponseEntity.getHeaders().get("Location").toString();
     }
 
     private void updateBalance(int balance, String username) {
+        LocalDateTime startDttm = LocalDateTime.now();
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-User-Name", username);
         Map<String, Object> fields = new HashMap<>();
@@ -403,5 +507,7 @@ public class GatewayController {
                 new HttpEntity<>(fields, headers),
                 PrivilegeResponse.class
         );
+        // send to kafka
+        kafkaProducer.send(new LogMessage(UUID.randomUUID(), startDttm, LocalDateTime.now(), username, "UPDATE_BALANCE", "BONUS_SERVICE"));
     }
 }

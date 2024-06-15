@@ -1,6 +1,8 @@
 CREATE SCHEMA ticket_service;
 CREATE SCHEMA flight_service;
 CREATE SCHEMA privilege_service;
+CREATE SCHEMA statistics_service;
+CREATE SCHEMA auth_service;
 
 
 /* flight service */
@@ -61,6 +63,11 @@ INSERT INTO flight_service.airport
 VALUES (1, 'Москва', 'Россия', 'Шереметьево');
 INSERT INTO flight_service.airport
 VALUES (2, 'Санкт-Петербург', 'Россия', 'Пулково');
+INSERT INTO flight_service.airport
+VALUES (3, 'Псков', 'Россия', 'Имени княгини Ольги');
+INSERT INTO flight_service.airport
+VALUES (4, 'Новосибирск', 'Россия', 'Толмачёво');
+
 INSERT INTO flight_service.flight
 VALUES (1, '2021-10-08 20:00:00', 'AFL031', 2, 1500, 1);
 
@@ -142,4 +149,34 @@ ALTER TABLE ONLY privilege_service.privilege_history
     ADD CONSTRAINT fkrqyar142oomkttl1ggfmtkdyc FOREIGN KEY (privilege_id) REFERENCES privilege_service.privilege (id);
 
 INSERT INTO privilege_service.privilege
-VALUES (1, 0, 'GOLD', 'test max');
+VALUES (1, 0, 'GOLD', 'user');
+
+INSERT INTO privilege_service.privilege
+VALUES (2, 0, 'BRONZE', 'test');
+
+
+/* auth service */
+ALTER SCHEMA auth_service OWNER TO postgres;
+CREATE TABLE auth_service.users
+(
+    id integer NOT NULL,
+    email character varying(255),
+    password character varying(255),
+    authorities character varying(255),
+    enabled boolean,
+    CONSTRAINT users_pkey PRIMARY KEY (id)
+);
+ALTER TABLE auth_service.users
+    OWNER TO postgres;
+CREATE SEQUENCE auth_service.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ALTER TABLE ONLY auth_service.users
+    ALTER COLUMN id SET DEFAULT nextval('auth_service.users_id_seq'::regclass);
+	
+INSERT INTO auth_service.users
+VALUES (1, 'user', '$2a$10$KoxHNdhOe6OY88Ybq6T2d.SGp6lVfj5ynY/QwaO5SRk998TgnYayi', 'ADMIN', true);

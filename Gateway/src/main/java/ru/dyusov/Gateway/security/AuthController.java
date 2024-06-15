@@ -17,8 +17,8 @@ public class AuthController {
     }
 
     @PostMapping(value = "/createUser", produces = MediaType.APPLICATION_JSON_VALUE)
-    public String createUser(@RequestBody UserInfoRequest user, @RequestHeader("Authorization") String authHeader) {
-        return restService.createUser(user, authHeader);
+    public String createUser(@RequestBody UserInfoRequest user) {
+        return restService.createUser(user);
     }
 
 }

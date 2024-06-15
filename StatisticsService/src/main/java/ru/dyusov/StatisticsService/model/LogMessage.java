@@ -3,19 +3,24 @@ package ru.dyusov.StatisticsService.model;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
-import java.util.Date;
+import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
 @Accessors(chain = true)
 @ToString
 @Entity
-@Table(name = "service_statistics")
-public class Message {
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(schema = "public", name = "service_statistics")
+public class LogMessage implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @JsonProperty("eventUuid")
@@ -23,25 +28,17 @@ public class Message {
 
     @JsonProperty("eventStart")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss.SSS")
-    public Date eventStart;
+    public LocalDateTime eventStart;
 
     @JsonProperty("eventEnd")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss.SSS")
-    public Date eventEnd;
+    public LocalDateTime eventEnd;
 
     @JsonProperty("username")
     public String username;
 
     @JsonProperty("action")
     public String action;
-
-//    @JsonProperty("params")
-//    public Map<String, Object> params;
-//
-//    @JsonAnySetter
-//    void setParams(String key, Object value) {
-//        params.put(key, value);
-//    }
 
     @JsonProperty("service")
     public String service;

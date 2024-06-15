@@ -1,0 +1,284 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgresql-claim0
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/Users/rajeshp/docker/postgres/docker-pg-vol/data"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-claim0
+  labels:
+    app: postgresql
+    tier: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-initdb-config
+data:
+  init.sql: |
+    CREATE SCHEMA ticket_service;
+    CREATE SCHEMA flight_service;
+    CREATE SCHEMA privilege_service;
+    CREATE SCHEMA statistics_service;
+    CREATE SCHEMA auth_service;
+    /* flight service */
+    ALTER SCHEMA flight_service OWNER TO postgres;
+    CREATE TABLE flight_service.airport
+    (
+        id      integer NOT NULL,
+        city    character varying(255),
+        country character varying(255),
+        name    character varying(255)
+    );
+    ALTER TABLE flight_service.airport
+        OWNER TO postgres;
+    CREATE SEQUENCE flight_service.airport_id_seq
+        AS integer
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+    ALTER TABLE ONLY flight_service.airport
+        ALTER COLUMN id SET DEFAULT nextval('flight_service.airport_id_seq'::regclass);
+    CREATE TABLE flight_service.flight
+    (
+        id              integer NOT NULL,
+        date_time       character varying(255),
+        flight_number   character varying(255),
+        from_airport_id integer NOT NULL,
+        price           integer NOT NULL,
+        to_airport_id   integer NOT NULL
+    );
+    ALTER TABLE flight_service.flight
+        OWNER TO postgres;
+    CREATE SEQUENCE flight_service.flight_id_seq
+        AS integer
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+    ALTER TABLE ONLY flight_service.flight
+        ALTER COLUMN id SET DEFAULT nextval('flight_service.flight_id_seq'::regclass);
+    ALTER TABLE ONLY flight_service.airport
+        ADD CONSTRAINT airport_pkey PRIMARY KEY (id);
+    ALTER TABLE ONLY flight_service.flight
+        ADD CONSTRAINT flight_pkey PRIMARY KEY (id);
+    ALTER TABLE ONLY flight_service.flight
+        ADD CONSTRAINT from_airport_id FOREIGN KEY (from_airport_id) REFERENCES flight_service.airport (id);
+    ALTER TABLE ONLY flight_service.flight
+        ADD CONSTRAINT to_airport_id FOREIGN KEY (to_airport_id) REFERENCES flight_service.airport (id);
+    INSERT INTO flight_service.airport
+    VALUES (1, 'Москва', 'Россия', 'Шереметьево');
+    INSERT INTO flight_service.airport
+    VALUES (2, 'Санкт-Петербург', 'Россия', 'Пулково');
+    INSERT INTO flight_service.airport
+    VALUES (3, 'Псков', 'Россия', 'Имени княгини Ольги');
+    INSERT INTO flight_service.airport
+    VALUES (4, 'Новосибирск', 'Россия', 'Толмачёво');
+    INSERT INTO flight_service.airport
+    VALUES (5, 'Москва', 'Россия', 'Внуково');
+    INSERT INTO flight_service.flight
+    VALUES (1, '2021-10-08 20:00:00', 'AFL031', 2, 1500, 1);
+    INSERT INTO flight_service.flight
+    VALUES (2, '2024-06-14 21:15:00', 'A47036', 3, 1000, 5);
+    INSERT INTO flight_service.flight
+    VALUES (3, '2024-06-17 23:45:00', 'DP6525', 1, 2000, 4);
+    INSERT INTO flight_service.flight
+    VALUES (4, '2024-06-15 06:20:00', 'FV6542', 4, 2500, 2);
+    INSERT INTO flight_service.flight
+    VALUES (5, '2024-06-15 06:20:00', 'FV6542', 4, 2500, 2);
+    INSERT INTO flight_service.flight
+    VALUES (6, '2024-06-16 08:00:00', 'A47033', 5, 1000, 3);
+    /* ticket service */
+    ALTER SCHEMA ticket_service OWNER TO postgres;
+    CREATE TABLE ticket_service.ticket
+    (
+        id            integer NOT NULL,
+        flight_number character varying(255),
+        price         integer NOT NULL,
+        status        character varying(255),
+        ticket_uid    uuid,
+        username      character varying(255)
+    );
+    ALTER TABLE ticket_service.ticket
+        OWNER TO postgres;
+    CREATE SEQUENCE ticket_service.ticket_id_seq
+        AS integer
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+    ALTER TABLE ONLY ticket_service.ticket
+        ALTER COLUMN id SET DEFAULT nextval('ticket_service.ticket_id_seq'::regclass);
+    ALTER TABLE ONLY ticket_service.ticket
+        ADD CONSTRAINT ticket_pkey PRIMARY KEY (id);
+    /* bonus service */
+    ALTER SCHEMA privilege_service OWNER TO postgres;
+    CREATE TABLE privilege_service.privilege
+    (
+        id       integer NOT NULL,
+        balance  integer NOT NULL,
+        status   character varying(255),
+        username character varying(255)
+    );
+    ALTER TABLE privilege_service.privilege
+        OWNER TO postgres;
+    CREATE SEQUENCE privilege_service.privilege_id_seq
+        AS integer
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+    ALTER TABLE ONLY privilege_service.privilege
+        ALTER COLUMN id SET DEFAULT nextval('privilege_service.privilege_id_seq'::regclass);
+    CREATE TABLE privilege_service.privilege_history
+    (
+        id             integer NOT NULL,
+        balance_diff   integer NOT NULL,
+        datetime       character varying(255),
+        operation_type character varying(255),
+        ticket_uid     uuid,
+        privilege_id   integer
+    );
+    ALTER TABLE privilege_service.privilege_history
+        OWNER TO postgres;
+    CREATE SEQUENCE privilege_service.privilege_history_id_seq
+        AS integer
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+    ALTER TABLE ONLY privilege_service.privilege_history
+        ALTER COLUMN id SET DEFAULT nextval('privilege_service.privilege_history_id_seq'::regclass);
+    ALTER TABLE ONLY privilege_service.privilege_history
+        ADD CONSTRAINT privilege_history_pkey PRIMARY KEY (id);
+    ALTER TABLE ONLY privilege_service.privilege
+        ADD CONSTRAINT privilege_pkey PRIMARY KEY (id);
+    ALTER TABLE ONLY privilege_service.privilege_history
+        ADD CONSTRAINT fkrqyar142oomkttl1ggfmtkdyc FOREIGN KEY (privilege_id) REFERENCES privilege_service.privilege (id);
+    INSERT INTO privilege_service.privilege
+    VALUES (1, 0, 'GOLD', 'user');
+    INSERT INTO privilege_service.privilege
+    VALUES (2, 0, 'BRONZE', 'test');
+    /* auth service */
+    ALTER SCHEMA auth_service OWNER TO postgres;
+    CREATE TABLE auth_service.users
+    (
+        id integer NOT NULL,
+        email character varying(255),
+        password character varying(255),
+        authorities character varying(255),
+        enabled boolean,
+        CONSTRAINT users_pkey PRIMARY KEY (id)
+    );
+    ALTER TABLE auth_service.users
+        OWNER TO postgres;
+    CREATE SEQUENCE auth_service.users_id_seq
+        AS integer
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+    ALTER TABLE ONLY auth_service.users
+        ALTER COLUMN id SET DEFAULT nextval('auth_service.users_id_seq'::regclass);
+    INSERT INTO auth_service.users
+    VALUES (1, 'user', '$2a$10$KoxHNdhOe6OY88Ybq6T2d.SGp6lVfj5ynY/QwaO5SRk998TgnYayi', 'ADMIN', true);
+    /* statistics service */
+    CREATE TABLE public.service_statistics
+    (
+        event_end timestamp(6) without time zone,
+        event_start timestamp(6) without time zone,
+        event_uuid uuid NOT NULL,
+        action character varying(255),
+        service character varying(255),
+        username character varying(255),
+        CONSTRAINT service_statistics_pkey PRIMARY KEY (event_uuid)
+    );
+    ALTER TABLE public.service_statistics
+        OWNER TO postgres;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+    tier: database
+spec:
+  selector:
+    matchLabels:
+      app: postgresql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        tier: database
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:12
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: "123"
+          ports:
+            - containerPort: 5432
+              name: postgresql
+          volumeMounts:
+            - name: postgresql-claim0
+              mountPath: /var/lib/postgresql/data
+
+            - mountPath: /docker-entrypoint-initdb.d
+              name: postgresql-initdb
+      volumes:
+        - name: postgresql-claim0
+          persistentVolumeClaim:
+            claimName: postgresql-claim0
+
+        - name: postgresql-initdb
+          configMap:
+            name: postgresql-initdb-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+    tier: database
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgresql
+    tier: database
